@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Host Mafia</title>
+	<meta content="width=device-width, initial-scale=1" name="viewport">
+	<link href="jquery.mobile-1.4.5.min.css" rel="stylesheet">
+	<script src="jquery-1.11.1.min.js">
+	</script>
+	<script src="jquery.mobile-1.4.5.min.js">
+	</script>
+</head>
+<body>
+<div data-role="page" data-theme="b" id="index">
+		<div data-role="header" data-theme="b">
+			<h1>Host Mafia</h1>
+		</div>
+		<div class="ui-content" role="main">
+			<ul data-inset="true" data-role="listview" id="content-list">
+				<li>
+					<a href="#newGame">New Game</a>
+				</li>
+				<li>
+					<a href="#howToPlay">How to Play</a>
+				</li>
+			</ul>
+		</div>
+	</div>
+	<div data-role="page" data-theme="b" id="newGame">
+		<header data-add-back-btn="true" data-role="header">
+			<h1>New Game</h1>
+		</header>
+		<div class="ui-content" role="main">
+			<div data-role="fieldcontain">
+				<label class="select" for="players">Number of Players</label>
+				<fieldset data-role="controlgroup" data-type="horizontal">
+					<select id="players" name="players">
+						<option>
+							&nbsp;
+						</option>
+						<option value="6">
+							6
+						</option>
+						<option value="7">
+							7
+						</option>
+						<option value="8">
+							8
+						</option>
+					</select>
+				</fieldset>
+				<label class = "select" for = "gameType">Game type:</label>
+				<fieldset data-role="controlgroup" data-type="horizontal">
+					<select id="gameType" name="gameType">
+						<option value="classic">
+							Classic
+						</option>
+						<option value="dethy">
+							Dethy
+						</option>
+					</select>
+				</fieldset>
+			</div>
+			<div id="playerFields"></div>
+			<div id="generateRoles"></div>
+		</div>
+	</div>
+	<div data-role="page" data-theme="b" id="roleList">
+		<header data-add-back-btn="true" data-role="header">
+			<h1>Role List</h1>
+		</header>
+		<div class="ui-content" role="main">
+			<ul data-inset="true" data-role="listview" id="playerRoles"></ul><a id = "startButton" class="ui-btn" href="#dayStart">Start Game</a>
+		</div>
+	</div>
+	<div data-role="page" data-theme="b" id="dayStart">
+		<header data-role="header">
+			<h1 id="dayNumber">Day 1</h1><a href="#roleList" data-icon="bullets" class = "roleList">Role List</a>
+		</header>
+		<div class="ui-content" role="main">
+			<div class="ui-field-contain">
+				<label for="lynchTarget">Lynch Target:</label> <select id="lynchTarget" name="playerNames">
+				</select>
+			</div><a class="ui-btn" href="#dayEnd" id="endDay">End Day</a>
+		</div>
+	</div>
+	<div data-role="page" data-theme="b" id="dayEnd">
+		<header data-role="header"><a href="#roleList" data-icon="bullets" class = "roleList">Role List</a>
+			<h1>Results</h1>
+		</header>
+		<div class="ui-content" role="main">
+			<div id="lynchVictim"></div>
+		</div><a class="ui-btn" href="#nightStart" id="triggerNightStart">Continue</a>
+	</div>
+	<div data-role="page" data-theme="b" id="nightStart">
+		<header data-role="header">
+			<h1 id="nightNumber">Night 1</h1><a href="#roleList" data-icon="bullets" class = "roleList">Role List</a>
+		</header>
+		<div class="ui-content" role="main">
+			<div id="nightAction">
+			</div>
+		</div><a class="ui-btn" href="#nightEnd" id = "endNight">Continue</a>
+	</div>
+	<div data-role="page" data-theme="b" id="nightEnd">
+		<header data-role="header">
+			<h1>Results</h1><a href="#roleList" data-icon="bullets" class = "roleList">Role List</a>
+		</header>
+		<div class="ui-content" role="main">
+			<div id="nightVictim"></div>
+		</div><a id = "nightGame" class="ui-btn" href="#dayStart">Continue</a>
+	</div>
+	<div data-dialog="true" data-overlay-theme="b" data-role="page" data-theme="b" id="investigativeResult" data-close-btn="right">
+		<div data-role="header">
+			<h2>Investigation</h2>
+		</div>
+		<div class="ui-content" role="main">
+			<h2 id="affiliationName"></h2>
+		</div>
+	</div>
+	<script>
+		var playerList = []; // list of players
+		var numMafia;
+		var numTown;
+		var playerListAlive;
+		var playerListAliveTown;
+		var dethyPlayerList;
+		$('#gameType').on('change', function() {
+			$('#generateRoles').empty();
+			$('#playerFields').empty();
+			if ($(this).val() === 'dethy') {
+				htmlPlayerField = '';
+				$('#playerFields').empty();
+				$('#players').append('<option value="5">5</option>')
+				$('#players').val(5);
+				$('#players').attr('disabled', 'disabled');
+				players = $('#players').val();
+				htmlPlayerField = '';
+				for (var i = 1; i < parseInt(players) + 1; i++) {
+					htmlPlayerField += '<input type="text" id="playerName' + i + '" name="playerName" placeholder="Player ' + i + '"/>';
+				}
+				$('#playerFields').html(htmlPlayerField); // htmPlayerField contains contents of #playerFields
+				$('#generateRoles').html('<a href ="#roleList" class="ui-btn"">Generate Roles</a>');
+				$('#newGame').trigger('create');
+			} else {
+				$("#players option:selected").remove();
+				$('#players').removeAttr('disabled');
+			}
+			try {
+				$('#players').selectmenu('refresh');
+			} catch (e) {}
+		});
+		$('#players').on('change', function() {
+			if ($(this).val() > 0) {
+				players = $(this).val();
+				htmlPlayerField = '';
+				for (var i = 1; i < parseInt(players) + 1; i++) {
+					htmlPlayerField += '<input type="text" id="playerName' + i + '" name="playerName" placeholder="Player ' + i + '"/>';
+				}
+				$('#playerFields').html(htmlPlayerField); // htmPlayerField contains contents of #playerFields
+				$('#generateRoles').html('<a href ="#roleList" class="ui-btn"">Generate Roles</a>');
+				$('#newGame').trigger('create');
+			} else {
+				$('#playerFields').empty();
+				$('#generateRoles').empty();
+			}
+		});
+
+		function shuffle(a) {
+			for (let i = a.length; i; i--) {
+				let j = Math.floor(Math.random() * i);
+				[a[i - 1], a[j]] = [a[j], a[i - 1]];
+			}
+		}
+		var stage = 1;
+		$('#generateRoles').click(function() {
+			htmlRoleList = '';
+			htmlPlayerList = '';
+			playerList.length = 0;
+			stage = 1;
+			$('#lynchTarget').removeAttr('disabled');
+			for (var i = 1; i < parseInt($('#players').val()) + 1; i++) {
+				playerList.push({
+					name: $('#playerName' + i).val(),
+					dead: false
+				});
+			}
+			shuffle(playerList); // shuffles player list
+			playerListAlive = playerList;
+			for (var i = 0; i < playerList.length; i++) {
+				if ($('#gameType').val() === 'classic') {
+					if (i < 2) {
+						playerList[i].role = 'mafia';
+						playerList[i].nightAction = true;
+					} else if (i === 2) {
+						playerList[i].role = 'cop';
+						playerList[i].nightAction = true;
+						playerList[i].sanity = 'sane';
+					} else if (i === 3) {
+						playerList[i].role = 'doctor';
+						playerList[i].nightAction = true;
+					} else {
+						playerList[i].role = 'villager';
+						playerList[i].nightAction = false;
+					}
+				} else {
+					if (i === 0) {
+						playerList[i].role = 'mafia';
+						playerList[i].nightAction = true;
+					} else {
+						playerList[i].role = 'cop';
+						playerList[i].nightAction = true;
+						switch (i) {
+							case 1:
+								playerList[i].sanity = 'sane';
+								break;
+							case 2:
+								playerList[i].sanity = 'insane';
+								break;
+							case 3:
+								playerList[i].sanity = 'naive';
+								break;
+							case 4:
+								playerList[i].sanity = 'paranoid';
+								break;
+						}
+					}
+				}
+				if (playerList[i].role === 'cop') {
+					htmlRoleList += '<li>' + playerList[i].name + ' is a ' + playerList[i].sanity + ' ' + playerList[i].role + '</li>';
+				} else {
+					htmlRoleList += '<li>' + playerList[i].name + ' is a ' + playerList[i].role + '</li>';
+				}
+			} // assigns roles
+			shuffle(playerList); // shuffles again
+			htmlPlayerList += '<option value = -1>No Lynch</option>'
+			for (var i = 0; i < playerList.length; i++) {
+				htmlPlayerList += '<option value="' + i + '">' + playerList[i].name + '</option>';
+			}
+			$('#playerRoles').html(htmlRoleList); // htmlRoleList contains contents of #playerRoles
+			$('#lynchTarget').html(htmlPlayerList);
+			numMafia = 2; // number of mafia remaining
+			if ($('#gameType').val() === 'dethy'){
+				$('#startButton').attr('href','#nightStart');
+				stage = 0;
+				numMafia = 1;
+				dethyPlayerList = '<option value = "-1">Skip action</option>';
+				for (var i = 0; i < playerList.length; i++){
+					dethyPlayerList += '<option value = ' + i + '>' + playerList[i].name + '</option>';
+				}
+				
+				$('#nightNumber').html('Night ' + stage);
+				for (var i = 0; i < playerList.length; i++) {
+					if (playerList[i].role === 'cop') {
+						
+						$('#nightAction').append('<label for ="' + playerList[i].sanity + playerList[i].role + 'Target">' + playerList[i].name + ' (' + playerList[i].sanity + ' ' + playerList[i].role + ') Target:</label><select id = "' + playerList[i].sanity + playerList[i].role + 'Target">' + dethyPlayerList + '</select><a href="#investigativeResult" class="investigationButton ui-btn " id = "' + playerList[i].sanity + playerList[i].role + '">Investigation result</a>');
+					}
+				}
+			}
+			numTown = playerList.length - numMafia; // number of town remaining
+			try {
+				$("#playerRoles").listview('refresh');
+				$('#lynchTarget').selectmenu('refresh');
+			} catch (e) {}
+		});
+		$('#endDay').click(function() {
+			target = $('#lynchTarget').val();
+			if (target === '-1') {
+				$('#lynchVictim').html('<h2>No-one was lynched.</h2>');
+			}
+			else{
+			$('#lynchVictim').html('<h2>' + playerList[target].name + ' was lynched. ' + playerList[target].name + ' was a ' + playerList[target].role + '</h2>');
+			if (playerList[target].dead === false) {
+				if (playerList[target].role === 'mafia') {
+					numMafia--;
+				} else {
+					numTown--;
+				}
+			} // stops already dead from dying
+			playerList[target].dead = true;
+			}
+			$('#lynchTarget').attr('disabled', 'disabled');
+		}); // kills a player
+		
+		$('#triggerNightStart').click(function() {
+			if (numMafia < numTown && numMafia !== 0) {
+				$('#nightAction').empty();
+				playerListAlive = '<option value = "-1">Skip action</option>';
+				playerListAliveTown = '<option value = "-1">Skip action</option>';
+				for (var i = 0; i < playerList.length; i++) {
+					if (playerList[i].dead === false) {
+						playerListAlive += '<option value = ' + i + '>' + playerList[i].name + '</option>';
+					}
+					if (playerList[i].dead === false && playerList[i].role !== 'mafia') {
+						playerListAliveTown += '<option value = ' + i + '>' + playerList[i].name + '</option>';
+					}
+				} // lists alive players
+				if ($('#gameType').val() === 'classic') {
+					$('#nightAction').append('<label for = "mafiaTarget">MAFIA Target:</label><select id = "mafiaTarget">' + playerListAliveTown + '</select>'); // mafia select view first, then for loop handles the rest
+					for (var i = 0; i < playerList.length; i++) {
+						if (playerList[i].nightAction === true && playerList[i].dead === false) {
+							if (playerList[i].role === 'cop') {
+								$('#nightAction').append('<label for ="' + playerList[i].sanity + playerList[i].role + 'Target">' + playerList[i].role.toUpperCase() + ' Target:</label><select id = "' + playerList[i].sanity + playerList[i].role + 'Target">' + playerListAlive + '</select><a href="#investigativeResult" class="investigationButton ui-btn " id = "' + playerList[i].sanity + playerList[i].role + '">Investigation result</a>');
+							} else if (playerList[i].role === 'doctor') {
+								$('#nightAction').append('<label for ="' + playerList[i].role + 'Target">' + playerList[i].role.toUpperCase() + ' Target:</label><select id = "' + playerList[i].role + 'Target">' + playerListAlive + '</select>');
+							}
+						}
+					}
+				} else {
+					for (var i = 0; i < playerList.length; i++) {
+						if (playerList[i].role === 'mafia') {
+							$('#nightAction').append('<label for = "mafiaTarget">' + playerList[i].name + ' (mafia) Target:</label><select id = "mafiaTarget">' + playerListAliveTown + '</select>');
+						} else if (playerList[i].role === 'cop' && playerList[i].dead === false) {
+							$('#nightAction').append('<label for ="' + playerList[i].sanity + playerList[i].role + 'Target">' + playerList[i].name + ' (' + playerList[i].sanity + ' ' + playerList[i].role + ') Target:</label><select id = "' + playerList[i].sanity + playerList[i].role + 'Target">' + playerListAlive + '</select><a href="#investigativeResult" class="investigationButton ui-btn " id = "' + playerList[i].sanity + playerList[i].role + '">Investigation result</a>');
+						}
+					}
+				}
+				$('#nightAction').trigger('create');
+			} else {
+				if (numMafia >= numTown) {
+					$('#nightStart').html('<div data-role="header" data-theme="b"><h1>Game Over!</h1></div><div class="ui-content" role="main"><h2>Mafia wins.</h2><a href="#roleList" class="roleList ui-btn" >Role List</a><a href="index.html" class="ui-btn" data-ajax="false">New Game</a></div>');
+				} else {
+					$('#nightStart').html('<div data-role="header" data-theme="b"><h1>Game Over!</h1></div><div class="ui-content" role="main"><h2>Town wins.</h2><a href="#roleList" class="roleList ui-btn" >Role List</a><a href="index.html" class="ui-btn" data-ajax="false">New Game</a></div>');
+				}
+				$('#nightStart').trigger('create');
+			}
+		});
+		$('#nightAction').on('click', '#sanecop', function() {
+			if ($('#sanecopTarget').val() === '-1'){
+				$('#affiliationName').html('No action selected');
+			}
+			else if (playerList[$('#sanecopTarget').val()].role !== 'mafia') {
+				$('#affiliationName').html(playerList[$('#sanecopTarget').val()].name + ' is innocent.');
+			} else {
+				$('#affiliationName').html(playerList[$('#sanecopTarget').val()].name + ' is guilty.');
+			}
+			
+		});
+		$('#nightAction').on('click', '#insanecop', function() {
+			if ($('#insanecopTarget').val() === '-1'){
+				$('#affiliationName').html('No action selected');
+			}
+			else if (playerList[$('#insanecopTarget').val()].role !== 'mafia') {
+				$('#affiliationName').html(playerList[$('#insanecopTarget').val()].name + ' is guilty.');
+			} else {
+				$('#affiliationName').html(playerList[$('#insanecopTarget').val()].name + ' is innocent.');
+			}
+		});
+		$('#nightAction').on('click', '#paranoidcop', function() {
+			if ($('#paranoidcopTarget').val() === '-1'){
+				$('#affiliationName').html('No action selected');
+			}
+			else {$('#affiliationName').html(playerList[$('#paranoidcopTarget').val()].name + ' is guilty.');}
+		});
+		$('#nightAction').on('click', '#naivecop', function() {
+			if ($('#naivecopTarget').val() === '-1'){
+				$('#affiliationName').html('No action selected');
+			}
+			else{
+			$('#affiliationName').html(playerList[$('#naivecopTarget').val()].name + ' is innocent.');}
+		});
+		$('#endNight').click(function() {
+			$('#nightAction :input').attr('disabled', 'disabled');
+			if ($('#doctorTarget').val() !== $('#mafiaTarget').val() && $('#mafiaTarget').val() >= 0) {
+				playerList[$('#mafiaTarget').val()].dead = true;
+				$('#nightVictim').html('<h2>It has been a bloody night. ' + playerList[$('#mafiaTarget').val()].name + ' has died. ' + playerList[$('#mafiaTarget').val()].name + ' was a ' + playerList[$('#mafiaTarget').val()].role + '.</h2>');
+				numTown--;
+			} else{
+				$('#nightVictim').html('<h2>It has been a peaceful night. No-one died.</h2>')
+			}
+			stage++;
+			$('#dayNumber').html('Day ' + stage);
+			$('#nightNumber').html('Night ' + stage);
+			playerListAlive = '<option value = "-1">No Lynch</option>';
+			for (var i = 0; i < playerList.length; i++) {
+				if (playerList[i].dead === false) {
+					playerListAlive += '<option value = ' + i + '>' + playerList[i].name + '</option>';
+				}
+			} // lists alive players
+			$('#lynchTarget').html(playerListAlive);
+			$('#lynchTarget').removeAttr('disabled');
+			try {
+				$('#lynchTarget').selectmenu('refresh');
+			} catch (e) {}
+		});
+		$('#nightGame').click(function() {
+			if (numMafia >= numTown || numMafia === 0) {
+				if (numMafia >= numTown) {
+					$('#dayStart').html('<div data-role="header" data-theme="b"><h1>Game Over!</h1></div><div class="ui-content" role="main"><h2>Mafia wins.</h2><a href="#roleList" class="roleList ui-btn" >Role List</a><a href="index.html" class="ui-btn" data-ajax="false">New Game</a></div>');
+				} else {
+					$('#dayStart').html('<div data-role="header" data-theme="b"><h1>Game Over!</h1></div><div class="ui-content" role="main"><h2>Town wins.</h2><a href="#roleList" class="roleList ui-btn" >Role List</a><a href="index.html" class="ui-btn" data-ajax="false">New Game</a></div>');
+				}
+				$('#dayStart').trigger('create');
+			}
+		});
+		$('body').on('click', '.roleList', function() {
+			roleList = '';
+			for (var i = 0; i < playerList.length; i++) {
+				if (playerList[i].dead === true) {
+					if (playerList[i].role === 'cop') {
+						roleList += '<li>(DEAD) ' + playerList[i].name + ' is a ' + playerList[i].sanity + ' ' + playerList[i].role + '</li>';
+					} else {
+						roleList += '<li>(DEAD) ' + playerList[i].name + ' is a ' + playerList[i].role + '</li>';
+					}
+				} else {
+					if (playerList[i].role === 'cop') {
+						roleList += '<li>(ALIVE) ' + playerList[i].name + ' is a ' + playerList[i].sanity + ' ' + playerList[i].role + '</li>';
+					} else {
+						roleList += '<li>(ALIVE) ' + playerList[i].name + ' is a ' + playerList[i].role + '</li>';
+					}
+				}
+			}
+			$('#playerRoles').html(roleList);
+			try {
+				$("#playerRoles").listview('refresh');
+			} catch (e) {}
+		});
+		$('#startButton').click(function() {
+			$('#startButton').remove();
+		});
+	</script>
+</body>
+</html>
